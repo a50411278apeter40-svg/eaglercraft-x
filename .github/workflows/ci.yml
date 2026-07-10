@@ -102,7 +102,7 @@ jobs:
       - name: Download and patch TeaVM dependencies
         run: |
           echo "Downloading TeaVM dependencies..."
-          cd /home/runner/work/eaglercraft-26.1.2/eaglercraft-26.1.2
+          cd $GITHUB_WORKSPACE
           ./gradlew :sources:dependencies --configuration teavmClasspath --no-daemon 2>/dev/null || true
           
           echo "Patching teavm-core JAR (suppress PhiUpdater assertion)..."
