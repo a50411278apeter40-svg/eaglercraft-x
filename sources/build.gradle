@@ -538,7 +538,7 @@ tasks.withType(org.teavm.gradle.tasks.GenerateJavaScriptTask).configureEach {
     // All methods preserved → no missing method crashes.
     optimization = org.teavm.gradle.api.OptimizationLevel.NONE
     // 12GB for the TeaVM daemon JVM (forked separately from Gradle)
-    processMemory = 12288
+    processMemory = 6144
 }
 
 // ============================================================
