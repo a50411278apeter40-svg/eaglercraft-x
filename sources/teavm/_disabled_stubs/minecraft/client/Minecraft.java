@@ -185,6 +185,22 @@ public class Minecraft implements Window.WindowEventHandler {
         }
 
         /**
+         * PATCHED: Protected version of MC 26.1.2's private runTick(boolean).
+         * EaglerMinecraft subclass calls this via eaglerRunTick() to drive
+         * the full integrated tick+render pipeline per animation frame.
+         * In vanilla this is private; we expose it as protected so subclasses can call it.
+         */
+        protected void runTick(boolean isPaused) {
+                // Drive the tick+render cycle:
+                try {
+                        tick();
+                        render(!isPaused);
+                } catch (Throwable t) {
+                        ClientMain.warn("[Minecraft] runTick error: " + t.getMessage());
+                }
+        }
+
+        /**
          * Updates game state for one tick (20 TPS).
          * Called by EaglerCraft.gameLogicTick().
          */
