@@ -591,8 +591,8 @@ public class EaglerCraft {
                                 // Call MC's integrated tick+render method.
                                 // runTick(DeltaTracker, boolean isPaused) handles input,
                                 // game logic, and full rendering pipeline.
-                                net.minecraft.client.DeltaTracker dt = mc.getDeltaTracker();
-                                mc.runTick(dt, false);
+                                // MC 26.1.2: runTick(boolean isPaused)
+                                mc.runTick(false);
                         } catch (Throwable t) {
                                 ClientMain.warn("[EaglerCraft] MC runTick error: " + t.getMessage());
                                 // Fallback: at least clear the screen

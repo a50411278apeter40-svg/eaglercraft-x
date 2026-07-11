@@ -71,6 +71,10 @@ public class SharedConstants {
             return new DataVersion(4789, "main");
         }
         @Override
+        public String id() {
+            return "26.1.2-rc-1";
+        }
+        @Override
         public String name() {
             return "26.1.2-rc-1";
         }
