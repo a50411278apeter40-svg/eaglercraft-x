@@ -398,7 +398,8 @@ public class EaglerCraft {
                         // (TeaVM's Throwable loses the original JS stack when wrapping).
                         try {
                                 runWithJsStackCapture(() -> {
-                                        net.minecraft.client.Minecraft mc = new net.minecraft.client.Minecraft(gameConfig);
+                                        net.lax1dude.eaglercraft.v2_6.mc.EaglerMinecraft mc =
+                                                new net.lax1dude.eaglercraft.v2_6.mc.EaglerMinecraft(gameConfig);
                                         minecraftInstance = mc;
                                 });
                                 ClientMain.log("[EaglerCraft] Minecraft instance created!");
@@ -550,9 +551,9 @@ public class EaglerCraft {
          * </pre>
          */
         private static void gameLogicTick() {
-                if (minecraftInstance instanceof net.minecraft.client.Minecraft) {
+                if (minecraftInstance instanceof net.lax1dude.eaglercraft.v2_6.mc.EaglerMinecraft) {
                         try {
-                                // tick() is now called inside runTick() in renderFrame()
+                                // tick() is now called inside eaglerRunTick() in renderFrame()
                                 // just mark tick as succeeded
                                 mcTickSucceeded = true;
                         } catch (Throwable t) {
@@ -585,17 +586,16 @@ public class EaglerCraft {
                 // MC's run() method has its own render loop.
                 // We only render our fallback title screen if MC isn't running.
 
-                if (minecraftInstance instanceof net.minecraft.client.Minecraft) {
-                        net.minecraft.client.Minecraft mc = (net.minecraft.client.Minecraft) minecraftInstance;
+                if (minecraftInstance instanceof net.lax1dude.eaglercraft.v2_6.mc.EaglerMinecraft) {
+                        net.lax1dude.eaglercraft.v2_6.mc.EaglerMinecraft mc =
+                                (net.lax1dude.eaglercraft.v2_6.mc.EaglerMinecraft) minecraftInstance;
                         try {
-                                // Call MC's integrated tick+render method.
-                                // runTick(DeltaTracker, boolean isPaused) handles input,
-                                // game logic, and full rendering pipeline.
-                                // MC 26.1.2: runTick(boolean isPaused)
-                                mc.runTick(false);
+                                // Drive MC's full tick+render pipeline via public bridge method.
+                                // eaglerRunTick() calls the private runTick(boolean) which handles
+                                // input processing, game logic, and the full rendering pipeline.
+                                mc.eaglerRunTick(false);
                         } catch (Throwable t) {
-                                ClientMain.warn("[EaglerCraft] MC runTick error: " + t.getMessage());
-                                // Fallback: at least clear the screen
+                                ClientMain.warn("[EaglerCraft] MC tick error: " + t.getMessage());
                                 PlatformOpenGL._wglClear(
                                         WebGL2RenderingContext.COLOR_BUFFER_BIT
                                         | WebGL2RenderingContext.DEPTH_BUFFER_BIT);
