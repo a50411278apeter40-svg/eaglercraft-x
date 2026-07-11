@@ -1,33 +1,57 @@
 package com.mojang.serialization.codecs;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.MapLike;
 import java.util.function.Function;
 
 // PATCHED: Returns no-op Codec/MapCodec instances instead of null.
 
-public class RecordCodecBuilder {
-    
+public class RecordCodecBuilder<O, F> {
+
     @SuppressWarnings("unchecked")
-    public static <O> Codec<O> create(Function<O, MapCodec<O>> builder) {
+    public static <O> Codec<O> create(Function<?, ?> builder) {
         return (Codec<O>) Codec.PASSTHROUGH;
     }
-    
+
     @SuppressWarnings("unchecked")
-    public static <O> MapCodec<O> mapCodec(Function<O, MapCodec<O>> builder) {
-        return (MapCodec<O>) EMPTY_MAPCODEC;
+    public static <O> MapCodec<O> mapCodec(Function<?, ?> builder) {
+        return emptyMapCodec();
     }
-    
+
     @SuppressWarnings("unchecked")
-    public static <O, F> MapCodec<F> forGetter(Function<O, F> getter) {
-        return (MapCodec<F>) EMPTY_MAPCODEC;
+    public static <O, F> RecordCodecBuilder<O, F> of(Function<O, F> getter, MapCodec<F> codec) {
+        return new RecordCodecBuilder<>();
     }
-    
+
+    // Instance method (used from MapCodec.forGetter)
+    public static <O, F> RecordCodecBuilder<O, F> instance() {
+        return new RecordCodecBuilder<>();
+    }
+
+    /** Group support - returns a dummy MapCodec */
     @SuppressWarnings("unchecked")
-    public static <O, F> MapCodec<F> of(MapCodec<F> codec, Function<O, F> getter) {
-        return (MapCodec<F>) EMPTY_MAPCODEC;
+    public static <O> MapCodec<O> group(Object... parts) {
+        return emptyMapCodec();
     }
-    
-    // MapCodec is an interface with all default methods, so empty impl works
-    private static final MapCodec<?> EMPTY_MAPCODEC = new MapCodec<Object>() {};
+
+    @SuppressWarnings("unchecked")
+    private static <T> MapCodec<T> emptyMapCodec() {
+        return new MapCodec<T>() {
+            @Override public T decode(DynamicOps<?> ops, MapLike<?> input) { return null; }
+        };
+    }
+
+    /** Inner Instance class for RecordCodecBuilder.create(instance -> ...) pattern */
+    public static class Instance<O> {
+        @SuppressWarnings("unchecked")
+        public <A> App<RecordCodecBuilder<O, ?>, A> group(Object... parts) {
+            return null;
+        }
+    }
+
+    /** App marker interface */
+    public interface App<F, A> {}
 }

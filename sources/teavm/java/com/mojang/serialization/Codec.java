@@ -246,6 +246,8 @@ public interface Codec<T> {
     /** Returns a dummy non-null MapCodec to prevent NPE when methods are chained. */
     @SuppressWarnings("unchecked")
     static <T> MapCodec<T> __dummyMapCodec() {
-        return new MapCodec<T>() {};
+        return new MapCodec<T>() {
+            @Override public T decode(com.mojang.serialization.DynamicOps<?> ops, com.mojang.serialization.MapLike<?> input) { return null; }
+        };
     }
 }
