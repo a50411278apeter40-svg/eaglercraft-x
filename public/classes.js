@@ -3055,9 +3055,12 @@ nlevi_PlatformAudio__init = () => {
         return;
     }
     console.log("[PlatformAudio] AudioContext created, state=" + var$2.state);
+    console.log("[PlatformAudio] A: checking audioWorklet...");
     nlevi_PlatformAudio_audioWorkletAvailable = !!(window.AudioContext && AudioContext.prototype.audioWorklet) ? 1 : 0;
+    console.log("[PlatformAudio] B: getting sampleRate...");
     nlevi_PlatformAudio_sampleRate = nlevi_PlatformAudio_audioContext.sampleRate;
     window.__eaglercraftAudioCtx = nlevi_PlatformAudio_audioContext;
+    console.log("[PlatformAudio] C: createDynamicsCompressor...");
     var$2 = nlevi_PlatformAudio_audioContext.createDynamicsCompressor();
     nlevi_PlatformAudio_compressorNode = var$2;
     if (var$2 !== null) {
@@ -3067,12 +3070,15 @@ nlevi_PlatformAudio__init = () => {
         nlevi_PlatformAudio_setCompressorAttack$js_body$_52(nlevi_PlatformAudio_compressorNode, 0.003);
         nlevi_PlatformAudio_setCompressorRelease$js_body$_53(nlevi_PlatformAudio_compressorNode, 0.25);
     }
+    console.log("[PlatformAudio] D: createGain nodes...");
     nlevi_PlatformAudio_masterGain = nlevi_PlatformAudio_audioContext.createGain();
     nlevi_PlatformAudio_musicGain = nlevi_PlatformAudio_audioContext.createGain();
     nlevi_PlatformAudio_sfxGain = nlevi_PlatformAudio_audioContext.createGain();
+    console.log("[PlatformAudio] E: setGainValue...");
     nlevi_PlatformAudio_setGainValue$js_body$_46(nlevi_PlatformAudio_masterGain, nlevi_PlatformAudio_masterVolume);
     nlevi_PlatformAudio_setGainValue$js_body$_46(nlevi_PlatformAudio_musicGain, nlevi_PlatformAudio_musicVolume);
     nlevi_PlatformAudio_setGainValue$js_body$_46(nlevi_PlatformAudio_sfxGain, nlevi_PlatformAudio_sfxVolume);
+    console.log("[PlatformAudio] F: connect nodes...");
     nlevi_PlatformAudio_musicGain.connect(nlevi_PlatformAudio_masterGain);
     nlevi_PlatformAudio_sfxGain.connect(nlevi_PlatformAudio_masterGain);
     var$3 = nlevi_PlatformAudio_audioContext.destination;
@@ -3083,6 +3089,7 @@ nlevi_PlatformAudio__init = () => {
         nlevi_PlatformAudio_masterGain.connect(var$2);
         nlevi_PlatformAudio_compressorNode.connect(var$3);
     }
+    console.log("[PlatformAudio] G: init complete flag...");
     nlevi_PlatformAudio_initialized = 1;
     var$4 = nlevi_PlatformAudio_sampleRate;
     var$1 = nlevi_PlatformAudio_audioWorkletAvailable;
