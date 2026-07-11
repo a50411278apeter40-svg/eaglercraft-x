@@ -3060,7 +3060,7 @@ nlevi_PlatformAudio__init = () => {
     }
     console.log("[PlatformAudio] AudioContext created, state=" + var$2.state);
     console.log("[PlatformAudio] A: checking audioWorklet...");
-    nlevi_PlatformAudio_audioWorkletAvailable = !!(window.AudioContext && AudioContext.prototype.audioWorklet) ? 1 : 0;
+    nlevi_PlatformAudio_audioWorkletAvailable = !!(window.AudioContext && 'audioWorklet' in AudioContext.prototype) ? 1 : 0;
     console.log("[PlatformAudio] B: getting sampleRate...");
     nlevi_PlatformAudio_sampleRate = nlevi_PlatformAudio_audioContext.sampleRate;
     window.__eaglercraftAudioCtx = nlevi_PlatformAudio_audioContext;
