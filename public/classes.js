@@ -1976,8 +1976,11 @@ nlevit_MainClass_main = var$1 => {
                     nlevi_PlatformOpenGL__init();
                     nlevi_PlatformInput__init();
                     nlevi_PlatformRuntime__init();
+                    console.log("[INIT] Before PlatformAudio...");
                     nlevi_PlatformAudio__init();
+                    console.log("[INIT] After PlatformAudio. Before PlatformApplication...");
                     nlevi_PlatformApplication__init();
+                    console.log("[INIT] After PlatformApplication. Starting game loop...");
                     nlevit_ClientMain_initialized = 1;
                     nlevit_ClientMain_startGameLoop();
                     break b;
