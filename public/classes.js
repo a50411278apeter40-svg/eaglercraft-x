@@ -43,7 +43,7 @@ $rt_mainStarter = f => (args, callback) => {
         javaArgs.data[i] = $rt_str(args[i]);
     }
     $rt_startThread(() => {
-        f.call(null, javaArgs);
+        f(javaArgs);
     }, callback);
 },
 $rt_eraseClinit = target => target.$clinit = () => {
@@ -2023,10 +2023,10 @@ otji_JS_function = (var$1, var$2) => {
         let fn = function() {
             return var$1[var$2].apply(var$1, arguments);
         };
-        result = () => fn;
+        result = fn;
         var$1[name] = result;
     }
-    return result();
+    return result;
 },
 otci_IntegerUtil = $rt_classWithoutFields(),
 otci_IntegerUtil_toUnsignedLogRadixString = (var$1, var$2) => {
