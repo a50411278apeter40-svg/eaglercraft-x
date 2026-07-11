@@ -1,16 +1,22 @@
 package net.minecraft;
 
-// PATCHED: SharedConstants for browser/EaglerCraft environment.
-// getCurrentVersion() creates a WorldVersion.Simple directly instead of
-// calling DetectedVersion.createBuiltIn() which may fail due to Record issues.
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.metadata.pack.PackFormat;
+import net.minecraft.world.level.storage.DataVersion;
 
+/**
+ * PATCHED: SharedConstants for browser/EaglerCraft environment.
+ * Provides a hard-coded WorldVersion so DetectedVersion.tryDetectVersion()
+ * (which reads /version.json via Class.getResourceAsStream, unavailable in TeaVM)
+ * is bypassed entirely.
+ */
 public class SharedConstants {
     public static final boolean SNAPSHOT = false;
-    public static final int WORLD_VERSION = 3955;
-    public static final int PROTOCOL_VERSION = 775;
-    public static final int DATA_VERSION = 3955;
-    public static final int RESOURCE_PACK_FORMAT = 26;
-    public static final int DATA_PACK_FORMAT = 26;
+    public static final int WORLD_VERSION = 4789;
+    public static final int PROTOCOL_VERSION = 1073742131;
+    public static final int DATA_VERSION = 4789;
+    public static final int RESOURCE_PACK_FORMAT = 84;
+    public static final int DATA_PACK_FORMAT = 101;
 
     // Debug fields (all false for production)
     public static final boolean IS_RUNNING_IN_IDE = false;
@@ -54,32 +60,52 @@ public class SharedConstants {
 
     public static final char[] ILLEGAL_FILE_CHARACTERS = new char[]{'/', '\n', '\r', '\t', '\0', '\\', ':', '*', '?', '"', '<', '>', '|'};
 
-    private static WorldVersion CURRENT_VERSION;
+    /**
+     * Hard-coded WorldVersion for Minecraft 26.1.2-rc-1.
+     * Avoids DetectedVersion.tryDetectVersion() which requires /version.json
+     * via Class.getResourceAsStream (not available in TeaVM browser environment).
+     */
+    private static final WorldVersion CURRENT_VERSION = new WorldVersion() {
+        @Override
+        public DataVersion dataVersion() {
+            return new DataVersion(4789, "main");
+        }
+        @Override
+        public String name() {
+            return "26.1.2-rc-1";
+        }
+        @Override
+        public int protocolVersion() {
+            return 1073742131;
+        }
+        @Override
+        public PackFormat packVersion(PackType type) {
+            if (type == PackType.SERVER_DATA) {
+                return PackFormat.create(101, 1);
+            }
+            // CLIENT_RESOURCES and default
+            return PackFormat.create(84, 0);
+        }
+        @Override
+        public java.util.Date buildTime() {
+            return new java.util.Date(1744112783000L); // 2026-04-08T12:46:23+00:00
+        }
+        @Override
+        public boolean stable() {
+            return false;
+        }
+    };
 
     public static WorldVersion getCurrentVersion() {
-        if (CURRENT_VERSION == null) {
-            try {
-                System.out.println("[SharedConstants] Creating built-in version...");
-                CURRENT_VERSION = DetectedVersion.createBuiltIn("26.1.2", "26.1.2", true);
-                System.out.println("[SharedConstants] Version created: " + CURRENT_VERSION);
-            } catch (Throwable t) {
-                System.out.println("[SharedConstants] createBuiltIn failed: " + t);
-                try {
-                    // Try using the BUILT_IN field directly
-                    java.lang.reflect.Field f = DetectedVersion.class.getDeclaredField("BUILT_IN");
-                    f.setAccessible(true);
-                    CURRENT_VERSION = (WorldVersion) f.get(null);
-                    System.out.println("[SharedConstants] BUILT_IN field: " + CURRENT_VERSION);
-                } catch (Throwable t2) {
-                    System.out.println("[SharedConstants] BUILT_IN field failed: " + t2);
-                }
-            }
-        }
         return CURRENT_VERSION;
     }
 
+    public static void setVersion(WorldVersion version) {
+        // no-op: version is hard-coded for TeaVM
+    }
+
     public static String getCurrentVersionName() {
-        return "26.1.2";
+        return "26.1.2-rc-1";
     }
 
     public static boolean isSnapshot() {
@@ -104,5 +130,13 @@ public class SharedConstants {
 
     public static int getDataPackFormat() {
         return DATA_PACK_FORMAT;
+    }
+
+    /** Checks if a char is an illegal filename character. */
+    public static boolean isIllegalFilenameChar(char c) {
+        for (char illegal : ILLEGAL_FILE_CHARACTERS) {
+            if (c == illegal) return true;
+        }
+        return false;
     }
 }
