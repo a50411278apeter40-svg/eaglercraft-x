@@ -254,14 +254,18 @@ jobs:
           ./gradlew --no-daemon --no-build-cache :sources:teavmPluginJar 2>&1 | tail -10
 
           echo "=== Step 2: Patch teavm-relocated-libs-asm (now in cache after teavmPluginJar) ==="
+          echo "All ASM-related JARs in Gradle cache:"
+          find ~/.gradle/caches -name "*.jar" 2>/dev/null | grep -i "asm" | head -20
           TEAVM_ASM=$(find ~/.gradle/caches -name "teavm-relocated-libs-asm-*.jar" -not -name "*sources*" -type f 2>/dev/null | head -1)
+          echo "Found teavm-asm JAR: $TEAVM_ASM"
           if [ -n "$TEAVM_ASM" ]; then
-            python3 scripts/patch_teavm_asm.py "$TEAVM_ASM" "$TEAVM_ASM.tmp"
-            mv "$TEAVM_ASM.tmp" "$TEAVM_ASM"
+            echo "JAR contents (ClassReader):"
+            $JAVA_HOME/bin/jar tf "$TEAVM_ASM" | grep -i "ClassReader" || echo "  ClassReader NOT found in JAR!"
+            python3 scripts/patch_teavm_asm.py "$TEAVM_ASM" "$TEAVM_ASM.patched"
+            mv "$TEAVM_ASM.patched" "$TEAVM_ASM"
             echo "Patched teavm-asm: $TEAVM_ASM"
           else
             echo "WARNING: teavm-relocated-libs-asm JAR not found even after teavmPluginJar!"
-            find ~/.gradle/caches -name "*.jar" 2>/dev/null | grep -i "asm" | head -10
           fi
 
           echo "=== Step 3: Compile teavm Java sources ==="
