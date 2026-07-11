@@ -2581,9 +2581,9 @@ nlevi_PlatformOpenGL__init = () => {
         console.warn("EXT_color_buffer_float not available - float render targets may not work");
     if (nlevi_PlatformOpenGL_extTextureFloatLinear === null)
         console.warn("OES_texture_float_linear not available - float texture filtering may not work");
-    nlevi_PlatformOpenGL_glVersion = $rt_str(nlevi_PlatformOpenGL_gl.getString(7938));
-    nlevi_PlatformOpenGL_glVendor = $rt_str(nlevi_PlatformOpenGL_gl.getString(7936));
-    nlevi_PlatformOpenGL_glRenderer = $rt_str(nlevi_PlatformOpenGL_gl.getString(7937));
+    nlevi_PlatformOpenGL_glVersion = $rt_str(nlevi_PlatformOpenGL_gl.getParameter(7938));
+    nlevi_PlatformOpenGL_glVendor = $rt_str(nlevi_PlatformOpenGL_gl.getParameter(7936));
+    nlevi_PlatformOpenGL_glRenderer = $rt_str(nlevi_PlatformOpenGL_gl.getParameter(7937));
     var$1 = nlevi_PlatformOpenGL_glVersion;
     var$2 = new jl_StringBuilder;
     jl_AbstractStringBuilder__init_(var$2);
