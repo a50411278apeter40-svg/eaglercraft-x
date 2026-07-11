@@ -39,9 +39,7 @@ public class RecordCodecBuilder<O, F> {
 
     @SuppressWarnings("unchecked")
     private static <T> MapCodec<T> emptyMapCodec() {
-        return new MapCodec<T>() {
-            @Override public DataResult<T> decode(DynamicOps<?> ops, MapLike<?> input) { return DataResult.success(null); }
-        };
+        return (ops, input) -> DataResult.success(null);
     }
 
     /** Inner Instance class for RecordCodecBuilder.create(instance -> ...) pattern */
