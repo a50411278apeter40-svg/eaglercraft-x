@@ -559,6 +559,156 @@ METHODS_TO_ADD = {
 }
 
 
+
+def patch_tfile_topath(data):
+    pos = 8
+    old_cp_count = struct.unpack('>H', data[pos:pos+2])[0]; pos += 2
+
+    cp_entries = [None]
+    raw_entries = []
+
+    def u2(p): return struct.unpack('>H', data[p:p+2])[0]
+
+    i = 1
+    while i < old_cp_count:
+        entry_start = pos
+        tag = data[pos]; pos += 1
+        if tag == 1:
+            l = u2(pos); pos += 2
+            s = data[pos:pos+l].decode('utf-8', errors='replace'); pos += l
+            cp_entries.append(('Utf8', s))
+        elif tag == 7:
+            v = u2(pos); pos += 2; cp_entries.append(('Class', v))
+        elif tag == 8:
+            v = u2(pos); pos += 2; cp_entries.append(('String', v))
+        elif tag == 9:
+            v1 = u2(pos); pos += 2; v2 = u2(pos); pos += 2; cp_entries.append(('Fieldref', v1, v2))
+        elif tag == 10:
+            v1 = u2(pos); pos += 2; v2 = u2(pos); pos += 2; cp_entries.append(('Methodref', v1, v2))
+        elif tag == 11:
+            v1 = u2(pos); pos += 2; v2 = u2(pos); pos += 2; cp_entries.append(('IntMethodref', v1, v2))
+        elif tag == 12:
+            v1 = u2(pos); pos += 2; v2 = u2(pos); pos += 2; cp_entries.append(('NameAndType', v1, v2))
+        elif tag in (3, 4): pos += 4; cp_entries.append(('num',))
+        elif tag in (5, 6):
+            pos += 8; cp_entries.append(('num2',)); cp_entries.append(None)
+            raw_entries.append((data[entry_start:pos], True)); i += 1; continue
+        elif tag == 15: pos += 3; cp_entries.append(('mh',))
+        elif tag in (16,): pos += 2; cp_entries.append(('mt',))
+        elif tag == 18: pos += 4; cp_entries.append(('id',))
+        else: break
+        raw_entries.append((data[entry_start:pos], False))
+        i += 1
+
+    rest_after_cp = pos
+
+    def find_utf8(s):
+        for i, e in enumerate(cp_entries):
+            if e and e[0] == 'Utf8' and e[1] == s: return i
+        return 0
+
+    if find_utf8('toPath') != 0:
+        print("  TFile.toPath already exists, skipping")
+        return data
+
+    def add_entry(entry, raw):
+        cp_entries.append(entry)
+        raw_entries.append((raw, False))
+        return len(cp_entries) - 1
+
+    def add_utf8(s):
+        idx = find_utf8(s)
+        if idx: return idx
+        enc = s.encode('utf-8')
+        return add_entry(('Utf8', s), bytes([1]) + struct.pack('>H', len(enc)) + enc)
+
+    def find_or_add_class(name_idx):
+        for i, e in enumerate(cp_entries):
+            if e and e[0] == 'Class' and e[1] == name_idx: return i
+        return add_entry(('Class', name_idx), bytes([7]) + struct.pack('>H', name_idx))
+
+    def find_or_add_nat(n, d):
+        for i, e in enumerate(cp_entries):
+            if e and e[0] == 'NameAndType' and e[1] == n and e[2] == d: return i
+        return add_entry(('NameAndType', n, d), bytes([12]) + struct.pack('>HH', n, d))
+
+    def find_or_add_methodref(c, nat):
+        for i, e in enumerate(cp_entries):
+            if e and e[0] == 'Methodref' and e[1] == c and e[2] == nat: return i
+        return add_entry(('Methodref', c, nat), bytes([10]) + struct.pack('>HH', c, nat))
+
+    paths_name_idx = add_utf8('java/nio/file/Paths')
+    paths_class_idx = find_or_add_class(paths_name_idx)
+    get_name_idx = add_utf8('get')
+    get_desc_idx = add_utf8('(Ljava/lang/String;)Ljava/nio/file/Path;')
+    get_nat_idx = find_or_add_nat(get_name_idx, get_desc_idx)
+    get_methodref_idx = find_or_add_methodref(paths_class_idx, get_nat_idx)
+    topath_name_idx = add_utf8('toPath')
+    topath_desc_idx = add_utf8('()Ljava/nio/file/Path;')
+    code_idx = add_utf8('Code')
+
+    path_fieldref_idx = 27  # TFile 0.15.0: CP[27] = Fieldref(TFile, path:String)
+
+    bytecode = bytes([
+        0x2A,                                                    # aload_0
+        0xB4, 0x00, path_fieldref_idx,                          # getfield #27 (this.path)
+        0xB8, (get_methodref_idx >> 8) & 0xFF, get_methodref_idx & 0xFF,  # invokestatic Paths.get
+        0xB0                                                     # areturn
+    ])
+
+    code_attr_data = (
+        struct.pack('>HH', 1, 1) +
+        struct.pack('>I', len(bytecode)) + bytecode +
+        struct.pack('>HH', 0, 0)
+    )
+
+    new_method = (
+        struct.pack('>H', 0x0001) +
+        struct.pack('>H', topath_name_idx) +
+        struct.pack('>H', topath_desc_idx) +
+        struct.pack('>H', 1) +
+        struct.pack('>H', code_idx) +
+        struct.pack('>I', len(code_attr_data)) + code_attr_data
+    )
+
+    new_cp_data = bytearray(struct.pack('>H', len(cp_entries)))
+    for i in range(1, len(cp_entries)):
+        if i - 1 < len(raw_entries):
+            new_cp_data += raw_entries[i-1][0]
+
+    rest_data = data[rest_after_cp:]
+    r_pos = 6
+    intf_count = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2 + intf_count * 2
+    fields_count = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2
+    for _ in range(fields_count):
+        r_pos += 6
+        ac = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2
+        for _ in range(ac):
+            r_pos += 2; al = struct.unpack('>I', rest_data[r_pos:r_pos+4])[0]; r_pos += 4 + al
+
+    mcount_pos = r_pos
+    methods_count = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2
+    scan = r_pos
+    for _ in range(methods_count):
+        scan += 6
+        ac = struct.unpack('>H', rest_data[scan:scan+2])[0]; scan += 2
+        for _ in range(ac):
+            scan += 2; al = struct.unpack('>I', rest_data[scan:scan+4])[0]; scan += 4 + al
+    methods_end = scan
+
+    MAGIC = bytes([0xCA, 0xFE, 0xBA, 0xBE])
+    final = (
+        MAGIC + data[4:8] +
+        bytes(new_cp_data) +
+        rest_data[:mcount_pos] +
+        struct.pack('>H', methods_count + 1) +
+        rest_data[mcount_pos+2:methods_end] +
+        new_method +
+        rest_data[methods_end:]
+    )
+    print(f"  TFile: added toPath() → Paths.get(this.path) [CP methodref #{get_methodref_idx}]")
+    return final
+
 def patch_jar(input_jar, output_jar):
     """Patch the teavm-classlib.jar by adding missing methods to .class files"""
     
@@ -596,6 +746,11 @@ def patch_jar(input_jar, output_jar):
                         total_skipped += skipped
                     except Exception as e:
                         print(f"  {item.filename}: ERROR - {e}")
+                
+                # Special patch: add TFile.toPath() with Paths.get(this.path) body
+                if item.filename == 'org/teavm/classlib/java/io/TFile.class':
+                    print(f"  Applying TFile.toPath() special patch...")
+                    data = patch_tfile_topath(data)
                 
                 zout.writestr(item, data)
     
