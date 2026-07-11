@@ -2900,6 +2900,7 @@ nlevi_PlatformRuntime__init = () => {
     var$2 = window.screen.height;
     nlevi_PlatformRuntime_screenHeight = var$2;
     nlevi_PlatformRuntime_landscapeOrientation = nlevi_PlatformRuntime_screenWidth < var$2 ? 0 : 1;
+    nlevi_PlatformRuntime_pageVisible = (!document.hidden) ? 1 : 0;
     if (nlevit_ClientMain_pageVisibilitySupported)
         nlevi_PlatformRuntime_registerVisibilityChangeListener$js_body$_50();
     nlevi_PlatformRuntime_registerResizeListener$js_body$_52();
