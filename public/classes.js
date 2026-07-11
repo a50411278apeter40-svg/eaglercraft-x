@@ -3036,6 +3036,7 @@ nlevi_PlatformAudio_$callClinit = () => {
 },
 nlevi_PlatformAudio__init = () => {
     let var$1, var$2, var$3, var$4, var$5, var$6;
+    console.log("[PlatformAudio] Starting init...");
     nlevi_PlatformAudio_$callClinit();
     nlevit_ClientMain_$callClinit();
     if (!nlevit_ClientMain_audioSupported) {
@@ -3044,14 +3045,16 @@ nlevi_PlatformAudio__init = () => {
     }
     var$1 = 48000;
     var$2 = nlevit_ClientMain_config;
-    if (var$2 !== null)
+    if (var$2 !== null && var$2.audioSampleRate !== undefined && var$2.audioSampleRate !== null)
         var$1 = var$2.audioSampleRate;
+    console.log("[PlatformAudio] Creating AudioContext sampleRate=" + var$1);
     var$2 = nlevi_PlatformAudio_createAudioContext$js_body$_25(var$1);
     nlevi_PlatformAudio_audioContext = var$2;
     if (var$2 === null) {
         console.warn("[PlatformAudio] Failed to create AudioContext");
         return;
     }
+    console.log("[PlatformAudio] AudioContext created, state=" + var$2.state);
     nlevi_PlatformAudio_audioWorkletAvailable = !!(window.AudioContext && AudioContext.prototype.audioWorklet) ? 1 : 0;
     nlevi_PlatformAudio_sampleRate = nlevi_PlatformAudio_audioContext.sampleRate;
     window.__eaglercraftAudioCtx = nlevi_PlatformAudio_audioContext;
@@ -3113,7 +3116,8 @@ nlevi_PlatformAudio__clinit_ = () => {
 },
 nlevi_PlatformAudio_createAudioContext$js_body$_25 = var$1 => {
     try {
-        return new (window.AudioContext || window.webkitAudioContext)({ sampleRate : var$1 });
+        let opts = (var$1 !== undefined && var$1 !== null) ? { sampleRate : var$1 } : {};
+        return new (window.AudioContext || window.webkitAudioContext)(opts);
     } catch (e){
         return null;
     }
@@ -3813,10 +3817,15 @@ nlev_EaglerCraft_initialize = () => {
             console.log("[EaglerCraft] Brand: EaglerCraftX");
             console.log("[EaglerCraft] Protocol: 775");
             console.log("[EaglerCraft] MC Target: 26.1.2");
+            console.log("[EaglerCraft] Step 1: PlatformWebService init...");
             nleva_PlatformWebService_init();
+            console.log("[EaglerCraft] Step 2: EaglerProfile load...");
             nlev_EaglerProfile_load();
+            console.log("[EaglerCraft] Step 3: setupRenderingPipeline...");
             nlev_EaglerCraft_setupRenderingPipeline();
+            console.log("[EaglerCraft] Step 4: applyAudioSettings...");
             nlev_EaglerCraft_applyAudioSettings();
+            console.log("[EaglerCraft] Step 5: createMinecraftInstance...");
             nlev_EaglerCraft_createMinecraftInstance();
             nlev_EaglerCraft_gameState = 2;
             nlev_EaglerCraft_initialized = 1;
