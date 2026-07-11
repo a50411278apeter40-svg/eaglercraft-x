@@ -2181,9 +2181,9 @@ nlevit_ClientMain_createContextAttributes$js_body$_22 = var$1 => {
 },
 nlevit_ClientMain_getCurrentTimeMillis$js_body$_25 = () => {
     if (window.performance && window.performance.now) {
-        return Math.floor(window.performance.now());
+        return BigInt(Math.floor(window.performance.now()));
     } else {
-        return Date.now();
+        return BigInt(Date.now());
     }
 },
 nlevit_ClientMain_showCrashScreen0$js_body$_26 = var$1 => {
@@ -2976,9 +2976,9 @@ nlevi_PlatformRuntime__clinit_ = () => {
 },
 nlevi_PlatformRuntime_getCurrentTimeMillis0$js_body$_39 = () => {
     if (window.performance && window.performance.now) {
-        return Math.floor(window.performance.now());
+        return BigInt(Math.floor(window.performance.now()));
     } else {
-        return Date.now();
+        return BigInt(Date.now());
     }
 },
 nlevi_PlatformRuntime_getTimeOrigin0$js_body$_40 = () => {
