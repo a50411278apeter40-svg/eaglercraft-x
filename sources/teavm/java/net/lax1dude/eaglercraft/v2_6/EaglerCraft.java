@@ -552,8 +552,8 @@ public class EaglerCraft {
         private static void gameLogicTick() {
                 if (minecraftInstance instanceof net.minecraft.client.Minecraft) {
                         try {
-                                net.minecraft.client.Minecraft mc = (net.minecraft.client.Minecraft) minecraftInstance;
-                                mc.tick();
+                                // tick() is now called inside runTick() in renderFrame()
+                                // just mark tick as succeeded
                                 mcTickSucceeded = true;
                         } catch (Throwable t) {
                                 // MC tick errors shouldn't crash the game loop
@@ -585,13 +585,21 @@ public class EaglerCraft {
                 // MC's run() method has its own render loop.
                 // We only render our fallback title screen if MC isn't running.
 
-                if (minecraftInstance instanceof net.minecraft.client.Minecraft && mcTickSucceeded) {
-                        // MC handles its own rendering through its game loop.
-                        // The MC instance's run() method manages tick + render.
-                        // We just need to clear the framebuffer as a safety net.
-                        PlatformOpenGL._wglClear(
-                                WebGL2RenderingContext.COLOR_BUFFER_BIT
-                                | WebGL2RenderingContext.DEPTH_BUFFER_BIT);
+                if (minecraftInstance instanceof net.minecraft.client.Minecraft) {
+                        net.minecraft.client.Minecraft mc = (net.minecraft.client.Minecraft) minecraftInstance;
+                        try {
+                                // Call MC's integrated tick+render method.
+                                // runTick(DeltaTracker, boolean isPaused) handles input,
+                                // game logic, and full rendering pipeline.
+                                net.minecraft.client.DeltaTracker dt = mc.getDeltaTracker();
+                                mc.runTick(dt, false);
+                        } catch (Throwable t) {
+                                ClientMain.warn("[EaglerCraft] MC runTick error: " + t.getMessage());
+                                // Fallback: at least clear the screen
+                                PlatformOpenGL._wglClear(
+                                        WebGL2RenderingContext.COLOR_BUFFER_BIT
+                                        | WebGL2RenderingContext.DEPTH_BUFFER_BIT);
+                        }
                         return;
                 }
 
