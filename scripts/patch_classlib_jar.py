@@ -550,6 +550,174 @@ METHODS_TO_ADD = {
 
 
 
+def _patch_tfile_topath_overwrite(data):
+    """
+    TFile already has toPath() (null-return stub from prior patch).
+    Overwrite its Code attribute bytecode to call Paths.get(this.path).
+    
+    Strategy:
+    1. Parse CP to find/add Paths.get methodref
+    2. Scan methods table to find toPath()
+    3. Find its Code attribute
+    4. Replace the bytecode inside with our new bytecode
+    """
+    import struct
+
+    pos = 8
+    old_cp_count = struct.unpack('>H', data[pos:pos+2])[0]; pos += 2
+
+    cp_entries = [None]
+    raw_entries = []
+
+    def u2(p): return struct.unpack('>H', data[p:p+2])[0]
+    def u4(p): return struct.unpack('>I', data[p:p+4])[0]
+
+    i = 1
+    while i < old_cp_count:
+        entry_start = pos
+        tag = data[pos]; pos += 1
+        if tag == 1:
+            l = u2(pos); pos += 2
+            s = data[pos:pos+l].decode('utf-8', errors='replace'); pos += l
+            cp_entries.append(('Utf8', s))
+        elif tag == 7:
+            v = u2(pos); pos += 2; cp_entries.append(('Class', v))
+        elif tag == 8:
+            v = u2(pos); pos += 2; cp_entries.append(('String', v))
+        elif tag == 9:
+            v1 = u2(pos); pos += 2; v2 = u2(pos); pos += 2; cp_entries.append(('Fieldref', v1, v2))
+        elif tag == 10:
+            v1 = u2(pos); pos += 2; v2 = u2(pos); pos += 2; cp_entries.append(('Methodref', v1, v2))
+        elif tag == 11:
+            v1 = u2(pos); pos += 2; v2 = u2(pos); pos += 2; cp_entries.append(('IntMethodref', v1, v2))
+        elif tag == 12:
+            v1 = u2(pos); pos += 2; v2 = u2(pos); pos += 2; cp_entries.append(('NameAndType', v1, v2))
+        elif tag in (3, 4): pos += 4; cp_entries.append(('num',))
+        elif tag in (5, 6):
+            pos += 8; cp_entries.append(('num2',)); cp_entries.append(None)
+            raw_entries.append((data[entry_start:pos], True)); i += 1; continue
+        elif tag == 15: pos += 3; cp_entries.append(('mh',))
+        elif tag in (16,): pos += 2; cp_entries.append(('mt',))
+        elif tag == 18: pos += 4; cp_entries.append(('id',))
+        else: break
+        raw_entries.append((data[entry_start:pos], False))
+        i += 1
+
+    rest_after_cp = pos
+
+    def find_utf8(s):
+        for i, e in enumerate(cp_entries):
+            if e and e[0] == 'Utf8' and e[1] == s: return i
+        return 0
+
+    def add_entry(entry, raw):
+        cp_entries.append(entry)
+        raw_entries.append((raw, False))
+        return len(cp_entries) - 1
+
+    def add_utf8(s):
+        idx = find_utf8(s)
+        if idx: return idx
+        enc = s.encode('utf-8')
+        return add_entry(('Utf8', s), bytes([1]) + struct.pack('>H', len(enc)) + enc)
+
+    def find_or_add_class(name_idx):
+        for i, e in enumerate(cp_entries):
+            if e and e[0] == 'Class' and e[1] == name_idx: return i
+        return add_entry(('Class', name_idx), bytes([7]) + struct.pack('>H', name_idx))
+
+    def find_or_add_nat(n, d):
+        for i, e in enumerate(cp_entries):
+            if e and e[0] == 'NameAndType' and e[1] == n and e[2] == d: return i
+        return add_entry(('NameAndType', n, d), bytes([12]) + struct.pack('>HH', n, d))
+
+    def find_or_add_methodref(c, nat):
+        for i, e in enumerate(cp_entries):
+            if e and e[0] == 'Methodref' and e[1] == c and e[2] == nat: return i
+        return add_entry(('Methodref', c, nat), bytes([10]) + struct.pack('>HH', c, nat))
+
+    paths_name_idx = add_utf8('java/nio/file/Paths')
+    paths_class_idx = find_or_add_class(paths_name_idx)
+    get_name_idx = add_utf8('get')
+    get_desc_idx = add_utf8('(Ljava/lang/String;)Ljava/nio/file/Path;')
+    get_nat_idx = find_or_add_nat(get_name_idx, get_desc_idx)
+    get_methodref_idx = find_or_add_methodref(paths_class_idx, get_nat_idx)
+    topath_name_idx = add_utf8('toPath')
+    code_attr_name_idx = add_utf8('Code')
+
+    path_fieldref_idx = 27  # TFile 0.15.0: Fieldref(TFile, path:String)
+
+    new_bytecode = bytes([
+        0x2A,                                                   # aload_0
+        0xB4, 0x00, path_fieldref_idx,                         # getfield #27
+        0xB8, (get_methodref_idx >> 8) & 0xFF, get_methodref_idx & 0xFF,
+        0xB0                                                    # areturn
+    ])
+
+    # Serialize new CP
+    new_cp_data = bytearray(struct.pack('>H', len(cp_entries)))
+    for i in range(1, len(cp_entries)):
+        if i - 1 < len(raw_entries):
+            new_cp_data += raw_entries[i-1][0]
+
+    # Now rebuild the class body, finding toPath's Code attribute and replacing bytecode
+    rest_data = bytearray(data[rest_after_cp:])
+    r_pos = 6
+    intf_count = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2 + intf_count * 2
+    fields_count = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2
+    for _ in range(fields_count):
+        r_pos += 6
+        ac = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2
+        for _ in range(ac):
+            r_pos += 2; al = struct.unpack('>I', rest_data[r_pos:r_pos+4])[0]; r_pos += 4 + al
+
+    methods_count = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2
+
+    for _ in range(methods_count):
+        m_start = r_pos
+        n_idx = struct.unpack('>H', rest_data[r_pos+2:r_pos+4])[0]
+        r_pos += 6
+        ac = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2
+        for a_i in range(ac):
+            attr_name_idx = struct.unpack('>H', rest_data[r_pos:r_pos+2])[0]; r_pos += 2
+            attr_len = struct.unpack('>I', rest_data[r_pos:r_pos+4])[0]; r_pos += 4
+            attr_body_start = r_pos
+            r_pos += attr_len
+
+            # If this is toPath's Code attribute
+            if n_idx == topath_name_idx and attr_name_idx == code_attr_name_idx:
+                # Code attr layout: max_stack(2) + max_locals(2) + code_len(4) + code + exc(2) + attrs(2)
+                old_code_len = struct.unpack('>I', rest_data[attr_body_start+4:attr_body_start+8])[0]
+                new_code_len = len(new_bytecode)
+                delta = new_code_len - old_code_len
+
+                # Build new Code attribute body
+                new_code_body = (
+                    struct.pack('>HH', 1, 1) +            # max_stack=1, max_locals=1
+                    struct.pack('>I', new_code_len) +
+                    new_bytecode +
+                    struct.pack('>HH', 0, 0)              # exc_table=0, attrs=0
+                )
+                new_attr_len = len(new_code_body)
+
+                # Replace in rest_data
+                # attr starts at attr_body_start-6 (2 name + 4 len)
+                attr_full_start = attr_body_start - 6
+                attr_full_end = r_pos
+                rest_data = (
+                    rest_data[:attr_full_start] +
+                    bytearray(struct.pack('>H', attr_name_idx)) +
+                    bytearray(struct.pack('>I', new_attr_len)) +
+                    bytearray(new_code_body) +
+                    rest_data[attr_full_end:]
+                )
+                print(f"  TFile.toPath() Code overwritten: {old_code_len}→{new_code_len} bytes, Paths.get methodref #{get_methodref_idx}")
+                break
+
+    MAGIC = bytes([0xCA, 0xFE, 0xBA, 0xBE])
+    return MAGIC + data[4:8] + bytes(new_cp_data) + bytes(rest_data)
+
+
 def patch_tfile_topath(data):
     pos = 8
     old_cp_count = struct.unpack('>H', data[pos:pos+2])[0]; pos += 2
@@ -597,9 +765,18 @@ def patch_tfile_topath(data):
             if e and e[0] == 'Utf8' and e[1] == s: return i
         return 0
 
-    if find_utf8('toPath') != 0:
-        print("  TFile.toPath already exists, skipping")
-        return data
+    # If toPath() already exists (e.g., null-return stub from a previous pass),
+    # we must REPLACE it. We'll strip out the existing method body by removing
+    # the method entirely from the methods table and re-adding our correct version.
+    # (Simplest approach: proceed anyway — add_method skips if name+desc match,
+    # so we need to NOT skip here. Instead we just proceed — the existing toPath
+    # is the null stub from a prior patch run; we need to overwrite it.)
+    # 
+    # Solution: scan methods table, find toPath, patch its Code attribute directly.
+    existing_topath_idx = find_utf8('toPath')
+    if existing_topath_idx != 0:
+        print("  TFile.toPath exists (null stub) — will overwrite body in-place")
+        return _patch_tfile_topath_overwrite(data)
 
     def add_entry(entry, raw):
         cp_entries.append(entry)
@@ -763,3 +940,4 @@ if __name__ == '__main__':
     print(f"Patching {input_jar} -> {output_jar}")
     count = patch_jar(input_jar, output_jar)
     print(f"Done! Patched JAR: {output_jar} ({os.path.getsize(output_jar)} bytes)")
+
