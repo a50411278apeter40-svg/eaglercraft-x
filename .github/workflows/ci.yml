@@ -36,6 +36,24 @@ jobs:
           java-version: '26'
           cache: 'gradle'
 
+      # ── Setup Java 21 (for TeaVM generateJavaScript) ────────
+      # TeaVM 0.15.0's ASM only supports class file up to version 69 (Java 25).
+      # generateJavaScript must run under Java 21 (class version 65) to avoid
+      # "Unsupported class file major version 70" from JDK 26.
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      # Restore Java 26 as default for DFU patches and compilation
+      - name: Restore Java 26 as default
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '26'
+
       # ── Setup Node.js 22 ─────────────────────────────────────
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -277,14 +295,23 @@ jobs:
           # Without this, Gradle uses FROM-CACHE for compileTeavmJava and
           # our Java source changes (e.g., Codec.java, MapCodec.java) are
           # NOT recompiled — the old cached .class files are used instead.
-          # Final ASM patch right before generateJavaScript
-          echo "=== Final ASM patch before generateJavaScript ==="
-          TEAVM_ASM=$(find ~/.gradle/caches -path "*/teavm/teavm-relocated-libs-asm/0.15.0/*" -name "teavm-relocated-libs-asm-0.15.0.jar" -type f 2>/dev/null | head -1)
-          if [ -n "$TEAVM_ASM" ]; then
-            echo "Final patch: $TEAVM_ASM"
-            python3 scripts/patch_teavm_asm.py "$TEAVM_ASM" "$TEAVM_ASM.patched" && mv "$TEAVM_ASM.patched" "$TEAVM_ASM" && echo "Final patch OK"
+          # Switch to Java 21 for generateJavaScript
+          # TeaVM 0.15.0 ASM does not support class file version 70 (JDK 26)
+          # Java 21 produces version 65, which TeaVM handles fine.
+          echo "=== Switching to Java 21 for TeaVM generateJavaScript ==="
+          JAVA21_HOME=$(dirname $(dirname $(find /opt/hostedtoolcache/Java_Temurin_jdk -name "java" -path "*/21*/bin/java" 2>/dev/null | head -1)))
+          if [ -z "$JAVA21_HOME" ]; then
+            # fallback search
+            JAVA21_HOME=$(find /opt/hostedtoolcache -maxdepth 4 -name "release" 2>/dev/null | xargs grep -l "JAVA_VERSION="21" 2>/dev/null | head -1 | xargs dirname 2>/dev/null)
+          fi
+          echo "Java 21 home: $JAVA21_HOME"
+          if [ -n "$JAVA21_HOME" ] && [ -f "$JAVA21_HOME/bin/java" ]; then
+            export JAVA_HOME="$JAVA21_HOME"
+            export PATH="$JAVA_HOME/bin:$PATH"
+            echo "Switched to: $(java -version 2>&1 | head -1)"
           else
-            echo "WARNING: teavm-relocated-libs-asm-0.15.0.jar not found before generateJavaScript!"
+            echo "WARNING: Java 21 not found, staying on Java 26"
+            java -version 2>&1 | head -1
           fi
           ./gradlew --no-daemon --rerun-tasks --no-build-cache --stacktrace :sources:generateJavaScript 2>&1 | tee teavm.log
 
