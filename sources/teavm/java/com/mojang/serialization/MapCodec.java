@@ -27,7 +27,7 @@ public abstract class MapCodec<T> {
     }
 
     // ---- abstract core ----
-    public abstract T decode(DynamicOps<?> ops, MapLike<?> input);
+    public abstract DataResult<T> decode(DynamicOps<?> ops, MapLike<?> input);
 
     // ---- default instance methods ----
     public Encoder<T> encoder() { return (Encoder<T>) this; }
@@ -65,7 +65,7 @@ public abstract class MapCodec<T> {
     // ---- static factories ----
     public static <T> MapCodec<T> of(MapEncoder<T> encoder, MapDecoder<T> decoder) {
         return new MapCodec<T>() {
-            @Override public T decode(DynamicOps<?> ops, MapLike<?> input) { return null; }
+            @Override public DataResult<T> decode(DynamicOps<?> ops, MapLike<?> input) { return DataResult.success(null); }
         };
     }
 

@@ -247,7 +247,7 @@ public interface Codec<T> {
     @SuppressWarnings("unchecked")
     static <T> MapCodec<T> __dummyMapCodec() {
         return new MapCodec<T>() {
-            @Override public T decode(com.mojang.serialization.DynamicOps<?> ops, com.mojang.serialization.MapLike<?> input) { return null; }
+            @Override public com.mojang.serialization.DataResult<T> decode(com.mojang.serialization.DynamicOps<?> ops, com.mojang.serialization.MapLike<?> input) { return com.mojang.serialization.DataResult.success(null); }
         };
     }
 }
