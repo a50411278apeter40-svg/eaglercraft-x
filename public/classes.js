@@ -3037,6 +3037,7 @@ nlevi_PlatformAudio_$callClinit = () => {
 nlevi_PlatformAudio__init = () => {
     let var$1, var$2, var$3, var$4, var$5, var$6;
     console.log("[PlatformAudio] Starting init...");
+    try {
     nlevi_PlatformAudio_$callClinit();
     nlevit_ClientMain_$callClinit();
     if (!nlevit_ClientMain_audioSupported) {
@@ -3102,6 +3103,10 @@ nlevi_PlatformAudio__init = () => {
     jl_AbstractStringBuilder_insert(var$3, var$4, var$6);
     jl_AbstractStringBuilder_append(var$5, 41);
     console.log($rt_ustr(jl_AbstractStringBuilder_toString(var$2)));
+    } catch(___audioErr) {
+        console.error("[PlatformAudio] CRASH at:", ___audioErr && ___audioErr.stack ? ___audioErr.stack : String(___audioErr));
+        throw ___audioErr;
+    }
 },
 nlevi_PlatformAudio__clinit_ = () => {
     nlevi_PlatformAudio_audioContext = null;
