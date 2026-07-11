@@ -638,19 +638,25 @@ def _patch_tfile_topath_overwrite(data):
 
     paths_name_idx = add_utf8('java/nio/file/Paths')
     paths_class_idx = find_or_add_class(paths_name_idx)
+    string_arr_name_idx = add_utf8('[Ljava/lang/String;')
+    string_class_idx_for_arr = add_utf8('java/lang/String')
     get_name_idx = add_utf8('get')
-    get_desc_idx = add_utf8('(Ljava/lang/String;)Ljava/nio/file/Path;')
+    # Use (String, String[]) overload — always present in both TPaths and our patch Paths
+    get_desc_idx = add_utf8('(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;')
     get_nat_idx = find_or_add_nat(get_name_idx, get_desc_idx)
     get_methodref_idx = find_or_add_methodref(paths_class_idx, get_nat_idx)
     topath_name_idx = add_utf8('toPath')
     code_attr_name_idx = add_utf8('Code')
+    string_class_cp_idx = find_or_add_class(string_class_idx_for_arr)
 
     path_fieldref_idx = 27  # TFile 0.15.0: Fieldref(TFile, path:String)
 
     new_bytecode = bytes([
         0x2A,                                                   # aload_0
-        0xB4, 0x00, path_fieldref_idx,                         # getfield #27
-        0xB8, (get_methodref_idx >> 8) & 0xFF, get_methodref_idx & 0xFF,
+        0xB4, 0x00, path_fieldref_idx,                         # getfield #27 (this.path)
+        0x03,                                                   # iconst_0
+        0xBD, (string_class_cp_idx >> 8) & 0xFF, string_class_cp_idx & 0xFF,  # anewarray String
+        0xB8, (get_methodref_idx >> 8) & 0xFF, get_methodref_idx & 0xFF,       # invokestatic Paths.get(String, String[])
         0xB0                                                    # areturn
     ])
 
@@ -806,20 +812,26 @@ def patch_tfile_topath(data):
 
     paths_name_idx = add_utf8('java/nio/file/Paths')
     paths_class_idx = find_or_add_class(paths_name_idx)
+    string_arr_name_idx = add_utf8('[Ljava/lang/String;')
+    string_class_name_idx = add_utf8('java/lang/String')
     get_name_idx = add_utf8('get')
-    get_desc_idx = add_utf8('(Ljava/lang/String;)Ljava/nio/file/Path;')
+    # Use (String, String[]) — present in TPaths classlib (TeaVM resolves this)
+    get_desc_idx = add_utf8('(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;')
     get_nat_idx = find_or_add_nat(get_name_idx, get_desc_idx)
     get_methodref_idx = find_or_add_methodref(paths_class_idx, get_nat_idx)
     topath_name_idx = add_utf8('toPath')
     topath_desc_idx = add_utf8('()Ljava/nio/file/Path;')
     code_idx = add_utf8('Code')
+    string_class_cp_idx = find_or_add_class(string_class_name_idx)
 
     path_fieldref_idx = 27  # TFile 0.15.0: CP[27] = Fieldref(TFile, path:String)
 
     bytecode = bytes([
         0x2A,                                                    # aload_0
         0xB4, 0x00, path_fieldref_idx,                          # getfield #27 (this.path)
-        0xB8, (get_methodref_idx >> 8) & 0xFF, get_methodref_idx & 0xFF,  # invokestatic Paths.get
+        0x03,                                                    # iconst_0
+        0xBD, (string_class_cp_idx >> 8) & 0xFF, string_class_cp_idx & 0xFF,  # anewarray String
+        0xB8, (get_methodref_idx >> 8) & 0xFF, get_methodref_idx & 0xFF,       # invokestatic Paths.get(String, String[])
         0xB0                                                     # areturn
     ])
 
