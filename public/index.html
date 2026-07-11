@@ -233,7 +233,13 @@
                 try {
                     if (typeof self.main === 'function') {
                         console.log("[EaglerCraft] Calling self.main()...");
-                        self.main(null);
+                        self.main([], function(err) {
+                            if (err) {
+                                console.error("[EaglerCraft] main() error:", err);
+                                errorOverlay.classList.add("visible");
+                                errorMsg.textContent = "Runtime error: " + (err.message || err);
+                            }
+                        });
                     } else {
                         console.error("[EaglerCraft] main() not found in global scope!");
                     }
