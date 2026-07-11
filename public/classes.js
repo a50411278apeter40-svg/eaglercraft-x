@@ -2815,7 +2815,7 @@ nlevi_PlatformInput_registerWheelListener0$js_body$_6 = () => {
             var raw = e.deltaY;
             var normalized;
             if (mode === 0) normalized = raw; else if (mode === 1) normalized = raw * 40; else normalized = raw * 800;
-            net_lax1dude_eaglercraft_v2_6_internal_PlatformInput___onWheel(normalized);
+            nlevi_PlatformInput_dwheel = (nlevi_PlatformInput_dwheel + Math.round(normalized)) | 0;
         }, { passive : false });
     }
 },
@@ -2844,7 +2844,12 @@ nlevi_PlatformInput_updateTouchState0$js_body$_55 = var$1 => {
         var rect = t.target.getBoundingClientRect();
         var scaleX = t.target.clientWidth / rect.width;
         var scaleY = t.target.clientHeight / rect.height;
-        net_lax1dude_eaglercraft_v2_6_internal_PlatformInput___updateTouchPoint(i, (t.clientX - rect.left) * scaleX, (t.clientY - rect.top) * scaleY, t.force || 1.0);
+        var idx = i;
+        if (idx >= 0 && nlevi_PlatformInput_touchPoints !== null && idx < nlevi_PlatformInput_touchPoints.data.length) {
+            var tp = nlevi_PlatformInput_touchPoints.data[idx];
+            if (tp !== null && tp.data) { tp.data[0] = (t.clientX - rect.left) * scaleX; tp.data[1] = (t.clientY - rect.top) * scaleY; tp.data[2] = t.force || 1.0; }
+            if (nlevi_PlatformInput_touchActive !== null) nlevi_PlatformInput_touchActive.data[idx] = 1;
+        }
     }
 },
 nlevi_PlatformInput_pollGamepad0$js_body$_58 = var$1 => {
@@ -2852,10 +2857,10 @@ nlevi_PlatformInput_pollGamepad0$js_body$_58 = var$1 => {
     if (!gamepads || !gamepads[var$1]) return;
     var gp = gamepads[var$1];
     for (var i = 0;i < Math.min(gp.axes.length, 8);i++) {
-        net_lax1dude_eaglercraft_v2_6_internal_PlatformInput___updateGamepadAxis(i, gp.axes[i]);
+        if (nlevi_PlatformInput_gamepadAxes !== null && i < nlevi_PlatformInput_gamepadAxes.data.length) nlevi_PlatformInput_gamepadAxes.data[i] = gp.axes[i];
     }
     for (var i = 0;i < Math.min(gp.buttons.length, 24);i++) {
-        net_lax1dude_eaglercraft_v2_6_internal_PlatformInput___updateGamepadButton(i, gp.buttons[i].pressed);
+        if (nlevi_PlatformInput_gamepadButtons !== null && i < nlevi_PlatformInput_gamepadButtons.data.length) nlevi_PlatformInput_gamepadButtons.data[i] = gp.buttons[i].pressed ? 1 : 0;
     }
 },
 nlevi_PlatformRuntime = $rt_classWithoutFields(),
@@ -2997,22 +3002,22 @@ nlevi_PlatformRuntime_localStorageGet0$js_body$_44 = var$1 => {
 },
 nlevi_PlatformRuntime_registerVisibilityChangeListener$js_body$_50 = () => {
     document.addEventListener('visibilitychange', function() {
-        net_lax1dude_eaglercraft_v2_6_internal_PlatformRuntime___onVisibilityChange(!document.hidden);
+        nlevi_PlatformRuntime_pageVisible = !document.hidden ? 1 : 0;
     });
 },
 nlevi_PlatformRuntime_registerResizeListener$js_body$_52 = () => {
     window.addEventListener('resize', function() {
-        net_lax1dude_eaglercraft_v2_6_internal_PlatformRuntime___onResize();
+        nlevi_PlatformRuntime_updateCanvasSize();
     });
 },
 nlevi_PlatformRuntime_registerOrientationChangeListener$js_body$_54 = () => {
     if (screen.orientation) {
         screen.orientation.addEventListener('change', function() {
-            net_lax1dude_eaglercraft_v2_6_internal_PlatformRuntime___onOrientationChange();
+            nlevi_PlatformRuntime_updateCanvasSize();
         });
     } else {
         window.addEventListener('orientationchange', function() {
-            net_lax1dude_eaglercraft_v2_6_internal_PlatformRuntime___onOrientationChange();
+            nlevi_PlatformRuntime_updateCanvasSize();
         });
     }
 },
