@@ -490,7 +490,7 @@ teavm {
         // These patches fix null-safety and platform issues. If the game
         // crashes without them, we'll need to move the fixes to Java source
         // patches (sources/teavm/patch/) which survive obfuscation.
-        obfuscated = true
+        obfuscated = false
 
         sourceMap = true
 
