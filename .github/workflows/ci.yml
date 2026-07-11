@@ -253,30 +253,16 @@ jobs:
           echo "=== Step 1: Run teavmPluginJar to force download of teavm-relocated-libs-asm JAR ==="
           ./gradlew --no-daemon --no-build-cache :sources:teavmPluginJar 2>&1 | tail -10
 
-          echo "=== Step 2: Patch teavm-relocated-libs-asm ==="
-          # The JAR must be exactly teavm-relocated-libs-asm (contains only ~45 entries with ClassReader)
-          # Other ASM jars (asm-9.x, asm-tree, etc.) must be excluded
-          echo "All JARs matching 'teavm-relocated':"
-          find ~/.gradle/caches -path "*teavm/teavm-relocated*" -name "*.jar" -not -name "*sources*" 2>/dev/null
-          TEAVM_ASM=$(find ~/.gradle/caches -path "*teavm/teavm-relocated-libs-asm*" -name "*.jar" -not -name "*sources*" -type f 2>/dev/null | head -1)
-          echo "Found teavm-asm JAR: $TEAVM_ASM"
+          echo "=== Step 2: Patch teavm-relocated-libs-asm (exact name only) ==="
+          # MUST match exactly "teavm-relocated-libs-asm-0.15.0.jar" — NOT asm-analysis, asm-tree, etc.
+          TEAVM_ASM=$(find ~/.gradle/caches -path "*/teavm/teavm-relocated-libs-asm/0.15.0/*" -name "teavm-relocated-libs-asm-0.15.0.jar" -type f 2>/dev/null | head -1)
+          echo "Found exact teavm-asm JAR: $TEAVM_ASM"
           if [ -n "$TEAVM_ASM" ]; then
-            echo "Entry count: $($JAVA_HOME/bin/jar tf "$TEAVM_ASM" | wc -l)"
-            $JAVA_HOME/bin/jar tf "$TEAVM_ASM" | grep -i "ClassReader" && echo "ClassReader OK" || echo "ClassReader NOT FOUND"
             python3 scripts/patch_teavm_asm.py "$TEAVM_ASM" "$TEAVM_ASM.patched"
             mv "$TEAVM_ASM.patched" "$TEAVM_ASM"
-            echo "Patched teavm-asm: $TEAVM_ASM"
+            echo "Patched teavm-asm OK"
           else
-            echo "WARNING: teavm-relocated-libs-asm not in Gradle cache yet."
-            echo "Downloading directly from Maven Central..."
-            MAVEN_ASM="$HOME/.gradle/caches/teavm-asm-direct/teavm-relocated-libs-asm-0.15.0.jar"
-            mkdir -p "$(dirname $MAVEN_ASM)"
-            curl -sL "https://repo1.maven.org/maven2/org/teavm/teavm-relocated-libs-asm/0.15.0/teavm-relocated-libs-asm-0.15.0.jar" -o "$MAVEN_ASM"
-            python3 scripts/patch_teavm_asm.py "$MAVEN_ASM" "$MAVEN_ASM.patched"
-            mv "$MAVEN_ASM.patched" "$MAVEN_ASM"
-            echo "Patched Maven-downloaded teavm-asm: $MAVEN_ASM"
-            # Also patch if it lands in cache during generateJavaScript
-            export TEAVM_ASM_FALLBACK="$MAVEN_ASM"
+            echo "Not in cache yet — will patch after compileTeavmJava"
           fi
 
           echo "=== Step 3: Compile teavm Java sources ==="
@@ -292,16 +278,14 @@ jobs:
           # our Java source changes (e.g., Codec.java, MapCodec.java) are
           # NOT recompiled — the old cached .class files are used instead.
           # Final ASM patch right before generateJavaScript
-          # (Gradle may have downloaded it fresh during teavmPluginJar or compileTeavmJava)
           echo "=== Final ASM patch before generateJavaScript ==="
-          for ASM_JAR in $(find ~/.gradle/caches -path "*teavm-relocated-libs-asm*" -name "*.jar" -not -name "*sources*" -not -name "*.patched" -type f 2>/dev/null); do
-            echo "Patching: $ASM_JAR (entries: $(jar tf "$ASM_JAR" | wc -l))"
-            if jar tf "$ASM_JAR" | grep -q "ClassReader"; then
-              python3 scripts/patch_teavm_asm.py "$ASM_JAR" "$ASM_JAR.patched" && mv "$ASM_JAR.patched" "$ASM_JAR" && echo "  Patched OK"
-            else
-              echo "  Skipped (no ClassReader)"
-            fi
-          done
+          TEAVM_ASM=$(find ~/.gradle/caches -path "*/teavm/teavm-relocated-libs-asm/0.15.0/*" -name "teavm-relocated-libs-asm-0.15.0.jar" -type f 2>/dev/null | head -1)
+          if [ -n "$TEAVM_ASM" ]; then
+            echo "Final patch: $TEAVM_ASM"
+            python3 scripts/patch_teavm_asm.py "$TEAVM_ASM" "$TEAVM_ASM.patched" && mv "$TEAVM_ASM.patched" "$TEAVM_ASM" && echo "Final patch OK"
+          else
+            echo "WARNING: teavm-relocated-libs-asm-0.15.0.jar not found before generateJavaScript!"
+          fi
           ./gradlew --no-daemon --rerun-tasks --no-build-cache --stacktrace :sources:generateJavaScript 2>&1 | tee teavm.log
 
           if grep -q "BUILD SUCCESSFUL" teavm.log; then
