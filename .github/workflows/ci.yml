@@ -112,7 +112,35 @@ jobs:
 
       - name: Patch TeaVM ASM for Java 21 compatibility
         run: |
-          python3 scripts/patch_teavm_asm.py
+          echo "=== Searching for teavm-relocated-libs-asm JAR in Gradle cache ==="
+          ASM_JAR=$(find ~/.gradle/caches -name "teavm-relocated-libs-asm-*.jar"             -path "*/teavm-relocated-libs-asm*"             ! -name "*sources*" ! -name "*javadoc*"             2>/dev/null | sort | head -1)
+
+          if [ -z "$ASM_JAR" ]; then
+            echo "ERROR: teavm-relocated-libs-asm JAR not found in Gradle cache!"
+            find ~/.gradle/caches -name "*.jar" 2>/dev/null | grep -i "teavm" | head -20
+            exit 1
+          fi
+
+          echo "Found ASM JAR: $ASM_JAR"
+          echo "Size: $(du -h "$ASM_JAR" | cut -f1)"
+
+          # Verify ClassReader.class is inside
+          python3 -c "
+          import zipfile, sys
+          jar = sys.argv[1]
+          with zipfile.ZipFile(jar) as z:
+              cr = [n for n in z.namelist() if 'ClassReader' in n]
+              print(f'ClassReader entries: {cr}')
+              if not cr:
+                  print('ERROR: No ClassReader found!')
+                  sys.exit(1)
+          " "$ASM_JAR"
+
+          # Patch in-place: copy to /tmp, patch, copy back
+          cp "$ASM_JAR" /tmp/teavm-asm.jar
+          python3 scripts/patch_teavm_asm.py /tmp/teavm-asm.jar /tmp/teavm-asm-patched.jar
+          cp /tmp/teavm-asm-patched.jar "$ASM_JAR"
+          echo "Patch applied back to: $ASM_JAR" 
 
       - name: Run TeaVM compilation (generateJavaScript)
         run: |
