@@ -51,10 +51,28 @@ public interface MapCodec<T> {
     @SuppressWarnings("unchecked")
     default MapCodec<java.util.Optional<T>> optionalFieldOf(String name) { return (MapCodec<java.util.Optional<T>>) this; }
 
-    default MapCodec<T> unit(T defaultValue) { return this; }
-    default MapCodec<T> unit(Supplier<T> defaultValue) { return this; }
-    default Codec<T> unitCodec(T defaultValue) { return codec(); }
-    default Codec<T> unitCodec(Supplier<T> defaultValue) { return codec(); }
+    default MapCodec<T> unit(T defaultValue) {
+        // Return a new MapCodec that always provides defaultValue
+        // (do NOT return 'this' — caller may not be a MapCodec)
+        return (ops, input) -> DataResult.success(defaultValue);
+    }
+    default MapCodec<T> unit(Supplier<T> defaultValue) {
+        return (ops, input) -> DataResult.success(defaultValue.get());
+    }
+    default Codec<T> unitCodec(T defaultValue) {
+        final T val = defaultValue;
+        return new Codec<T>() {
+            @Override public T decode(Object input) { return val; }
+            @Override public Object encode(T value) { return null; }
+        };
+    }
+    default Codec<T> unitCodec(Supplier<T> defaultValue) {
+        final Supplier<T> sup = defaultValue;
+        return new Codec<T>() {
+            @Override public T decode(Object input) { return sup.get(); }
+            @Override public Object encode(T value) { return null; }
+        };
+    }
     default MapCodec<T> validate(Function<T, DataResult<T>> validator) { return this; }
 
     @SuppressWarnings("unchecked")
