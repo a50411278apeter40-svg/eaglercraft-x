@@ -418,18 +418,8 @@ METHODS_TO_ADD = {
     "org/teavm/classlib/java/util/TDate": [
         ("toInstant", "()Ljava/time/Instant;", OBJ_RET, 1, 1, PUBLIC),
     ],
-    "org/teavm/classlib/java/io/TFile": [
-        # toPath() - returns a new StubPath(path).
-        # Bytecode: aload_0 (this), getfield path, invokestatic Paths.get,
-        # areturn.
-        # But we can't easily reference StubPath from bytecode patcher.
-        # Instead, return a non-null placeholder. The default method patcher
-        # will add toPath() from our Java patch (File.java) to TFile's
-        # prototype if TFile implements the same interface.
-        # For now, use OBJ_RET (returns null) — the game's try/catch wrapper
-        # will catch any NPE and continue.
-        ("toPath", "()Ljava/nio/file/Path;", OBJ_RET, 1, 1, PUBLIC),
-    ],
+    # TFile.toPath() is handled by patch_tfile_topath() special function below
+    # (METHODS_TO_ADD can only return null; we need Paths.get(this.path) via CP injection)
     "org/teavm/classlib/java/io/TBufferedReader": [
         ("transferTo", "(Ljava/io/Writer;)J", LONG_RET, 1, 2, PUBLIC),
     ],
